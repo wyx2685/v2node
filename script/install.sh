@@ -176,23 +176,23 @@ install_base() {
             echo "安装 EPEL 源..."
             yum install -y epel-release >/dev/null 2>&1
         fi
-        need_install_yum wget curl unzip tar cronie socat ca-certificates pv
+        need_install_yum wget curl unzip tar cronie socat ca-certificates pv jq
         update-ca-trust force-enable >/dev/null 2>&1 || true
     elif [[ x"${release}" == x"alpine" ]]; then
-        need_install_apk wget curl unzip tar socat ca-certificates pv
+        need_install_apk wget curl unzip tar socat ca-certificates pv jq
         update-ca-certificates >/dev/null 2>&1 || true
     elif [[ x"${release}" == x"debian" ]]; then
-        need_install_apt wget curl unzip tar cron socat ca-certificates pv
+        need_install_apt wget curl unzip tar cron socat ca-certificates pv jq
         update-ca-certificates >/dev/null 2>&1 || true
     elif [[ x"${release}" == x"ubuntu" ]]; then
-        need_install_apt wget curl unzip tar cron socat ca-certificates pv
+        need_install_apt wget curl unzip tar cron socat ca-certificates pv jq
         update-ca-certificates >/dev/null 2>&1 || true
     elif [[ x"${release}" == x"arch" ]]; then
         echo "更新包数据库..."
         pacman -Sy --noconfirm >/dev/null 2>&1
         # --needed 会跳过已安装的包，非常高效
         echo "安装必需的包..."
-        pacman -S --noconfirm --needed wget curl unzip tar cronie socat ca-certificates pv >/dev/null 2>&1
+        pacman -S --noconfirm --needed wget curl unzip tar cronie socat ca-certificates pv jq >/dev/null 2>&1
     fi
 }
 
@@ -224,7 +224,18 @@ generate_v2node_config() {
         local api_key="$3"
 
         mkdir -p /etc/v2node >/dev/null 2>&1
-        cat > /etc/v2node/config.json <<EOF
+
+        local config_file="/etc/v2node/config.json"
+        local new_node="{\"ApiHost\": \"${api_host}\", \"NodeID\": ${node_id}, \"ApiKey\": \"${api_key}\", \"Timeout\": 30}"
+
+        # 检查配置文件是否存在
+        if [[ -f "$config_file" ]]; then
+            # 检查 JSON 是否有效
+            if ! jq empty "$config_file" >/dev/null 2>&1; then
+                echo -e "${yellow}警告: 现有配置文件格式错误，将备份并创建新配置${plain}"
+                cp "$config_file" "${config_file}.bak.$(date +%s)"
+                # 创建新配置
+                cat > "$config_file" <<EOF
 {
     "Log": {
         "Level": "warning",
@@ -232,16 +243,56 @@ generate_v2node_config() {
         "Access": "none"
     },
     "Nodes": [
-        {
-            "ApiHost": "${api_host}",
-            "NodeID": ${node_id},
-            "ApiKey": "${api_key}",
-            "Timeout": 30
-        }
+        ${new_node}
     ]
 }
 EOF
-        echo -e "${green}V2node 配置文件生成完成,正在重新启动服务${plain}"
+                echo -e "${green}已创建新的配置文件并添加节点 (ApiHost: ${api_host}, NodeID: ${node_id})${plain}"
+            else
+                # 检查是否已存在相同 ApiHost 和 NodeID 的节点
+                local node_exists=$(jq --arg host "$api_host" --arg id "$node_id" \
+                    '.Nodes | map(select(.ApiHost == $host and (.NodeID | tostring) == $id)) | length' \
+                    "$config_file")
+
+                if [[ "$node_exists" -gt 0 ]]; then
+                    # 更新现有节点
+                    jq --arg host "$api_host" \
+                       --arg id "$node_id" \
+                       --arg key "$api_key" \
+                       '.Nodes = [.Nodes[] | if .ApiHost == $host and (.NodeID | tostring) == $id then {
+                           "ApiHost": $host,
+                           "NodeID": ($id | tonumber),
+                           "ApiKey": $key,
+                           "Timeout": 30
+                       } else . end]' \
+                       "$config_file" > "${config_file}.tmp" && mv "${config_file}.tmp" "$config_file"
+                    echo -e "${green}已更新现有节点配置 (ApiHost: ${api_host}, NodeID: ${node_id})${plain}"
+                else
+                    # 追加新节点
+                    jq --argjson node "$new_node" \
+                       '.Nodes += [$node]' \
+                       "$config_file" > "${config_file}.tmp" && mv "${config_file}.tmp" "$config_file"
+                    echo -e "${green}已追加新节点到配置文件 (ApiHost: ${api_host}, NodeID: ${node_id})${plain}"
+                fi
+            fi
+        else
+            # 配置文件不存在，创建新配置
+            cat > "$config_file" <<EOF
+{
+    "Log": {
+        "Level": "warning",
+        "Output": "",
+        "Access": "none"
+    },
+    "Nodes": [
+        ${new_node}
+    ]
+}
+EOF
+            echo -e "${green}已创建配置文件并添加节点 (ApiHost: ${api_host}, NodeID: ${node_id})${plain}"
+        fi
+
+        echo -e "${green}V2node 配置文件更新完成,正在重新启动服务${plain}"
         if [[ x"${release}" == x"alpine" ]]; then
             service v2node restart
         else
@@ -347,17 +398,16 @@ EOF
         echo -e "${green}v2node ${last_version}${plain} 安装完成，已设置开机自启"
     fi
 
-    if [[ ! -f /etc/v2node/config.json ]]; then
-        # 如果通过 CLI 传入了完整参数，则直接生成配置并跳过交互
-        if [[ -n "$API_HOST_ARG" && -n "$NODE_ID_ARG" && -n "$API_KEY_ARG" ]]; then
-            generate_v2node_config "$API_HOST_ARG" "$NODE_ID_ARG" "$API_KEY_ARG"
-            echo -e "${green}已根据参数生成 /etc/v2node/config.json${plain}"
-            first_install=false
-        else
-            cp config.json /etc/v2node/
-            first_install=true
-        fi
+    # 如果通过 CLI 传入了完整参数，则直接生成/更新配置（支持追加节点）
+    if [[ -n "$API_HOST_ARG" && -n "$NODE_ID_ARG" && -n "$API_KEY_ARG" ]]; then
+        generate_v2node_config "$API_HOST_ARG" "$NODE_ID_ARG" "$API_KEY_ARG"
+        first_install=false
+    elif [[ ! -f /etc/v2node/config.json ]]; then
+        # 配置文件不存在且没有传入 CLI 参数，使用默认配置
+        cp config.json /etc/v2node/
+        first_install=true
     else
+        # 配置文件已存在且没有传入 CLI 参数，只启动服务
         if [[ x"${release}" == x"alpine" ]]; then
             service v2node start
         else

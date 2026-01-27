@@ -9,7 +9,7 @@ A v2board backend base on moddified xray-core.
 ### 一键安装
 
 ```
-wget -N https://raw.githubusercontent.com/wyx2685/v2node/master/script/install.sh && bash install.sh
+wget -N https://raw.githubusercontent.com/missish/v2node/main/script/install.sh && bash install.sh
 ```
 
 ## 构建
@@ -19,4 +19,4 @@ GOEXPERIMENT=jsonv2 go build -v -o build_assets/v2node -trimpath -ldflags "-X 'g
 
 ## Stars 增长记录
 
-[![Stargazers over time](https://starchart.cc/wyx2685/v2node.svg?variant=adaptive)](https://starchart.cc/wyx2685/v2node)
+[![Stargazers over time](https://starchart.cc/missish/v2node.svg?variant=adaptive)](https://starchart.cc/missish/v2node)

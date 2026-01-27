@@ -1,0 +1,59 @@
+name: Sync Upstream
+
+on:
+  schedule:
+    # 每天 UTC 0:00 检查上游更新
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+    inputs:
+      sync_method:
+        description: '同步方式'
+        required: true
+        default: 'rebase'
+        type: choice
+        options:
+          - rebase
+          - merge
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Add upstream
+        run: |
+          git remote add upstream https://github.com/wyx2685/v2node.git
+          git fetch upstream
+
+      - name: Check for updates
+        id: check
+        run: |
+          UPSTREAM_COMMITS=$(git rev-list HEAD..upstream/main --count)
+          echo "upstream_commits=$UPSTREAM_COMMITS" >> $GITHUB_OUTPUT
+          if [ "$UPSTREAM_COMMITS" -gt 0 ]; then
+            echo "有 $UPSTREAM_COMMITS 个新提交需要同步"
+          else
+            echo "上游没有新提交"
+          fi
+
+      - name: Sync upstream (rebase)
+        if: steps.check.outputs.upstream_commits > 0 && (github.event.inputs.sync_method == 'rebase' || github.event_name == 'schedule')
+        run: |
+          git rebase upstream/main
+          git push --force-with-lease
+
+      - name: Sync upstream (merge)
+        if: steps.check.outputs.upstream_commits > 0 && github.event.inputs.sync_method == 'merge'
+        run: |
+          git merge upstream/main -m "chore: 同步上游更新"
+          git push

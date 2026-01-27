@@ -31,7 +31,7 @@ import (
 	_ "github.com/xtls/xray-core/transport/internet/tagged/taggedimpl"
 
 	// Developer preview features
-	//_ "github.com/xtls/xray-core/app/observatory"
+	_ "github.com/xtls/xray-core/app/observatory"
 
 	// Inbound and outbound proxies.
 	_ "github.com/xtls/xray-core/proxy/anytls"

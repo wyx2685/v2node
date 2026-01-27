@@ -7,6 +7,7 @@ import (
 
 	panel "github.com/wyx2685/v2node/api/v2board"
 	"github.com/xtls/xray-core/app/dns"
+	"github.com/xtls/xray-core/app/observatory"
 	"github.com/xtls/xray-core/app/router"
 	xnet "github.com/xtls/xray-core/common/net"
 	"github.com/xtls/xray-core/core"
@@ -42,7 +43,7 @@ func hasOutboundWithTag(list []*core.OutboundHandlerConfig, tag string) bool {
 	return false
 }
 
-func GetCustomConfig(infos []*panel.NodeInfo) (*dns.Config, []*core.OutboundHandlerConfig, *router.Config, error) {
+func GetCustomConfig(infos []*panel.NodeInfo) (*dns.Config, []*core.OutboundHandlerConfig, *router.Config, *observatory.Config, error) {
 	//dns
 	queryStrategy := "UseIPv4v6"
 	if !hasPublicIPv6() {
@@ -63,8 +64,8 @@ func GetCustomConfig(infos []*panel.NodeInfo) (*dns.Config, []*core.OutboundHand
 	coreOutboundConfig := append([]*core.OutboundHandlerConfig{}, defaultoutbound)
 	block, _ := buildBlockOutbound()
 	coreOutboundConfig = append(coreOutboundConfig, block)
-	dns, _ := buildDnsOutbound()
-	coreOutboundConfig = append(coreOutboundConfig, dns)
+	dnsOut, _ := buildDnsOutbound()
+	coreOutboundConfig = append(coreOutboundConfig, dnsOut)
 
 	//route
 	domainStrategy := "AsIs"
@@ -77,6 +78,9 @@ func GetCustomConfig(infos []*panel.NodeInfo) (*dns.Config, []*core.OutboundHand
 		RuleList:       []json.RawMessage{dnsRule},
 		DomainStrategy: &domainStrategy,
 	}
+
+	// observatory tags for leastping/leastload strategies
+	var observatoryTags []string
 
 	for _, info := range infos {
 		if len(info.Common.Routes) == 0 {
@@ -223,6 +227,96 @@ func GetCustomConfig(infos []*panel.NodeInfo) (*dns.Config, []*core.OutboundHand
 					continue
 				}
 				coreOutboundConfig = append(coreOutboundConfig, custom_outbound)
+			case "balancer":
+				balancerConfig, err := ParseBalancerConfig(route.ActionValue)
+				if err != nil {
+					continue
+				}
+				// 构建出站配置
+				newOutbounds, err := BuildBalancerOutbounds(balancerConfig, coreOutboundConfig)
+				if err != nil {
+					continue
+				}
+				coreOutboundConfig = append(coreOutboundConfig, newOutbounds...)
+				// 构建负载均衡规则
+				balancingRule, err := BuildBalancingRule(balancerConfig)
+				if err != nil {
+					continue
+				}
+				coreRouterConfig.Balancers = append(coreRouterConfig.Balancers, balancingRule)
+				// 构建路由规则（域名匹配）
+				rule := map[string]interface{}{
+					"inboundTag":  info.Tag,
+					"domain":      route.Match,
+					"balancerTag": balancerConfig.Tag,
+				}
+				rawRule, err := json.Marshal(rule)
+				if err != nil {
+					continue
+				}
+				coreRouterConfig.RuleList = append(coreRouterConfig.RuleList, rawRule)
+				// 收集 Observatory tags
+				if balancerConfig.Strategy == "leastping" || balancerConfig.Strategy == "leastload" {
+					observatoryTags = append(observatoryTags, GetSelectorTags(balancerConfig)...)
+				}
+			case "balancer_ip":
+				balancerConfig, err := ParseBalancerConfig(route.ActionValue)
+				if err != nil {
+					continue
+				}
+				newOutbounds, err := BuildBalancerOutbounds(balancerConfig, coreOutboundConfig)
+				if err != nil {
+					continue
+				}
+				coreOutboundConfig = append(coreOutboundConfig, newOutbounds...)
+				balancingRule, err := BuildBalancingRule(balancerConfig)
+				if err != nil {
+					continue
+				}
+				coreRouterConfig.Balancers = append(coreRouterConfig.Balancers, balancingRule)
+				// 构建路由规则（IP 匹配）
+				rule := map[string]interface{}{
+					"inboundTag":  info.Tag,
+					"ip":          route.Match,
+					"balancerTag": balancerConfig.Tag,
+				}
+				rawRule, err := json.Marshal(rule)
+				if err != nil {
+					continue
+				}
+				coreRouterConfig.RuleList = append(coreRouterConfig.RuleList, rawRule)
+				if balancerConfig.Strategy == "leastping" || balancerConfig.Strategy == "leastload" {
+					observatoryTags = append(observatoryTags, GetSelectorTags(balancerConfig)...)
+				}
+			case "default_balancer":
+				balancerConfig, err := ParseBalancerConfig(route.ActionValue)
+				if err != nil {
+					continue
+				}
+				newOutbounds, err := BuildBalancerOutbounds(balancerConfig, coreOutboundConfig)
+				if err != nil {
+					continue
+				}
+				coreOutboundConfig = append(coreOutboundConfig, newOutbounds...)
+				balancingRule, err := BuildBalancingRule(balancerConfig)
+				if err != nil {
+					continue
+				}
+				coreRouterConfig.Balancers = append(coreRouterConfig.Balancers, balancingRule)
+				// 构建路由规则（所有流量）
+				rule := map[string]interface{}{
+					"inboundTag":  info.Tag,
+					"network":     "tcp,udp",
+					"balancerTag": balancerConfig.Tag,
+				}
+				rawRule, err := json.Marshal(rule)
+				if err != nil {
+					continue
+				}
+				coreRouterConfig.RuleList = append(coreRouterConfig.RuleList, rawRule)
+				if balancerConfig.Strategy == "leastping" || balancerConfig.Strategy == "leastload" {
+					observatoryTags = append(observatoryTags, GetSelectorTags(balancerConfig)...)
+				}
 			default:
 				continue
 			}
@@ -230,11 +324,21 @@ func GetCustomConfig(infos []*panel.NodeInfo) (*dns.Config, []*core.OutboundHand
 	}
 	DnsConfig, err := coreDnsConfig.Build()
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, err
 	}
 	RouterConfig, err := coreRouterConfig.Build()
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, err
 	}
-	return DnsConfig, coreOutboundConfig, RouterConfig, nil
+	// 创建固定的 Observatory 配置
+	var observatoryConfig *observatory.Config
+	if len(observatoryTags) > 0 {
+		observatoryConfig = &observatory.Config{
+			SubjectSelector:   observatoryTags,
+			ProbeUrl:          "https://www.gstatic.com/generate_204",
+			ProbeInterval:     30,
+			EnableConcurrency: true,
+		}
+	}
+	return DnsConfig, coreOutboundConfig, RouterConfig, observatoryConfig, nil
 }

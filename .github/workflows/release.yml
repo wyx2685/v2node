@@ -9,6 +9,7 @@ on:
       - "**/*.go"
       - "go.mod"
       - "go.sum"
+      - ".github/workflows/release.yml"
   release:
     types: [published]
 

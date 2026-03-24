@@ -29,6 +29,8 @@ type Limiter struct {
 	UserLimitInfo *sync.Map      // Key: TagUUID value: UserLimitInfo
 	SpeedLimiter  *sync.Map      // key: TagUUID, value: *DynamicBucket
 	AliveList     map[int]int    // Key: Uid, value: alive_ip
+	UserRoutes    map[string]string
+	userRouteLock sync.RWMutex
 }
 
 type UserLimitInfo struct {
@@ -47,6 +49,7 @@ func AddLimiter(tag string, users []panel.UserInfo, aliveList map[int]int) *Limi
 		SpeedLimiter:  new(sync.Map),
 		AliveList:     aliveList,
 		OldUserOnline: new(sync.Map),
+		UserRoutes:    make(map[string]string),
 	}
 	uuidmap := make(map[string]int)
 	for i := range users {

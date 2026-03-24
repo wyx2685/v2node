@@ -1,13 +1,38 @@
 package core
 
 import (
-	"fmt"
-
+	"context"
 	"encoding/json"
+	"fmt"
+	"time"
 
 	"github.com/xtls/xray-core/core"
+	"github.com/xtls/xray-core/features/outbound"
 	"github.com/xtls/xray-core/infra/conf"
 )
+
+func (v *V2Core) addOutbound(config *core.OutboundHandlerConfig) error {
+	rawHandler, err := core.CreateObject(v.Server, config)
+	if err != nil {
+		return err
+	}
+	handler, ok := rawHandler.(outbound.Handler)
+	if !ok {
+		return fmt.Errorf("not an OutboundHandler")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := v.ohm.AddHandler(ctx, handler); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (v *V2Core) removeOutbound(tag string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	return v.ohm.RemoveHandler(ctx, tag)
+}
 
 // build default freedom outbund
 func buildDefaultOutbound() (*core.OutboundHandlerConfig, error) {

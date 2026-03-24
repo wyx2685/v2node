@@ -64,6 +64,7 @@ type CommonNode struct {
 
 type Route struct {
 	Id          int      `json:"id"`
+	Remarks     string   `json:"remarks"`
 	Match       []string `json:"match"`
 	Action      string   `json:"action"`
 	ActionValue *string  `json:"action_value"`

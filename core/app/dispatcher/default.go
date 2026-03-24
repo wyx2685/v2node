@@ -539,6 +539,25 @@ func (d *DefaultDispatcher) routedDispatch(ctx context.Context, link *transport.
 			common.Interrupt(link.Reader)
 			return
 		}
+	} else if userRouteTag := func() string {
+		inbound := session.InboundFromContext(ctx)
+		if inbound != nil && inbound.User != nil {
+			email := inbound.User.Email
+			if strings.Contains(email, "|") {
+				parts := strings.Split(email, "|")
+				uuid := parts[len(parts)-1]
+				if limit, err := limiter.GetLimiter(inbound.Tag); err == nil {
+					return limit.GetUserRoute(uuid)
+				}
+			}
+		}
+		return ""
+	}(); userRouteTag != "" {
+		if h := d.ohm.GetHandler(userRouteTag); h != nil {
+			isPickRoute = 1
+			errors.LogInfo(ctx, "Hit User Route rule: [", userRouteTag, "] for [", destination, "]")
+			handler = h
+		}
 	} else if d.router != nil {
 		if route, err := d.router.PickRoute(routingLink); err == nil {
 			outTag := route.GetOutboundTag()

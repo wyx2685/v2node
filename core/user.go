@@ -16,7 +16,7 @@ import (
 	"github.com/xtls/xray-core/infra/conf"
 	"github.com/xtls/xray-core/proxy"
 	"github.com/xtls/xray-core/proxy/anytls"
-	"github.com/xtls/xray-core/proxy/hysteria2"
+	hyaccount "github.com/xtls/xray-core/proxy/hysteria/account"
 	"github.com/xtls/xray-core/proxy/shadowsocks"
 	"github.com/xtls/xray-core/proxy/shadowsocks_2022"
 	"github.com/xtls/xray-core/proxy/trojan"
@@ -276,8 +276,8 @@ func buildHysteria2Users(tag string, userInfo []panel.UserInfo) (users []*protoc
 }
 
 func buildHysteria2User(tag string, userInfo *panel.UserInfo) (user *protocol.User) {
-	hysteria2Account := &hysteria2.Account{
-		Password: userInfo.Uuid,
+	hysteria2Account := &hyaccount.Account{
+		Auth: userInfo.Uuid,
 	}
 	return &protocol.User{
 		Level:   0,

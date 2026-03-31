@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -15,6 +16,7 @@ import (
 	"github.com/xtls/xray-core/common/net"
 	"github.com/xtls/xray-core/core"
 	"github.com/xtls/xray-core/features/inbound"
+	"github.com/xtls/xray-core/infra/conf"
 	coreConf "github.com/xtls/xray-core/infra/conf"
 )
 
@@ -134,6 +136,10 @@ func buildInbound(nodeInfo *panel.NodeInfo, tag string) (*core.InboundHandlerCon
 					},
 				},
 				RejectUnknownSNI: nodeInfo.Common.CertInfo.RejectUnknownSni,
+			}
+			if nodeInfo.Type == "hysteria2" || nodeInfo.Type == "tuic" {
+				alpnList := &coreConf.StringList{"h3"}
+				in.StreamSetting.TLSSettings.ALPN = alpnList
 			}
 		}
 	case panel.Reality:
@@ -408,23 +414,43 @@ func buildShadowsocks(nodeInfo *panel.NodeInfo, inbound *coreConf.InboundDetourC
 }
 
 func buildHysteria2(nodeInfo *panel.NodeInfo, inbound *coreConf.InboundDetourConfig) error {
-	inbound.Protocol = "hysteria2"
+	inbound.Protocol = "hysteria"
 	s := nodeInfo.Common
-	settings := &coreConf.Hysteria2ServerConfig{
-		UpMbps:                uint64(s.UpMbps),
-		DownMbps:              uint64(s.DownMbps),
-		IgnoreClientBandwidth: s.Ignore_Client_Bandwidth,
-		Obfs: &coreConf.Hysteria2ObfsConfig{
-			Type:     s.Obfs,
-			Password: s.ObfsPassword,
-		},
+	settings := &coreConf.HysteriaServerConfig{
+		Version: 2,
 	}
 
-	t := coreConf.TransportProtocol("hysteria2")
+	t := coreConf.TransportProtocol("hysteria")
+	up := conf.Bandwidth(strconv.Itoa(s.UpMbps) + "mbps")
+	down := conf.Bandwidth(strconv.Itoa(s.DownMbps) + "mbps")
 	inbound.StreamSetting = &coreConf.StreamConfig{Network: &t}
-
+	hysteriasetting := &coreConf.HysteriaConfig{
+		Version: 2,
+	}
+	var finalmask *coreConf.FinalMask
+	if !s.Ignore_Client_Bandwidth && (s.UpMbps > 0 || s.DownMbps > 0) {
+		finalmask = &coreConf.FinalMask{
+			QuicParams: &coreConf.QuicParamsConfig{
+				Congestion: "force-brutal",
+				BrutalUp:   up,
+				BrutalDown: down,
+			},
+		}
+	}
+	if s.Obfs != "" && s.ObfsPassword != "" {
+		rawobfsJSON := json.RawMessage(fmt.Sprintf(`{"password":"%s"}`, s.ObfsPassword))
+		udp := []conf.Mask{
+			{
+				Type:     s.Obfs,
+				Settings: &rawobfsJSON,
+			},
+		}
+		finalmask.Udp = udp
+	}
+	inbound.StreamSetting.FinalMask = finalmask
 	sets, err := json.Marshal(settings)
 	inbound.Settings = (*json.RawMessage)(&sets)
+	inbound.StreamSetting.HysteriaSettings = hysteriasetting
 	if err != nil {
 		return fmt.Errorf("marshal hysteria2 settings error: %s", err)
 	}

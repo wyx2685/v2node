@@ -11,8 +11,8 @@ require (
 	github.com/spf13/cobra v1.9.1
 	github.com/spf13/viper v1.19.0
 	github.com/vmihailenco/msgpack/v5 v5.4.1
-	github.com/xtls/xray-core v1.260206.0
-	golang.org/x/sys v0.41.0
+	github.com/xtls/xray-core v1.260327.0
+	golang.org/x/sys v0.42.0
 	google.golang.org/protobuf v1.36.11
 )
 
@@ -49,7 +49,7 @@ require (
 	github.com/alibabacloud-go/tea-utils/v2 v2.0.7 // indirect
 	github.com/aliyun/credentials-go v1.4.6 // indirect
 	github.com/andybalholm/brotli v1.1.0 // indirect
-	github.com/apernet/quic-go v0.57.2-0.20260111184307-eec823306178 // indirect
+	github.com/apernet/quic-go v0.59.1-0.20260217092621-db4786c77a22 // indirect
 	github.com/aws/aws-sdk-go-v2 v1.36.6 // indirect
 	github.com/aws/aws-sdk-go-v2/config v1.29.18 // indirect
 	github.com/aws/aws-sdk-go-v2/credentials v1.17.71 // indirect
@@ -156,7 +156,7 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pquerna/otp v1.5.0 // indirect
 	github.com/quic-go/qpack v0.6.0 // indirect
-	github.com/refraction-networking/utls v1.8.2 // indirect
+	github.com/refraction-networking/utls v1.8.3-0.20260301010127-aa6edf4b11af // indirect
 	github.com/regfish/regfish-dnsapi-go v0.1.1 // indirect
 	github.com/riobard/go-bloom v0.0.0-20200614022211-cdc8013cb5b3 // indirect
 	github.com/sacloud/api-client-go v0.3.2 // indirect
@@ -193,7 +193,7 @@ require (
 	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect
 	github.com/volcengine/volc-sdk-golang v1.0.216 // indirect
 	github.com/vultr/govultr/v3 v3.21.1 // indirect
-	github.com/xtls/reality v0.0.0-20251014195629-e4eec4520535 // indirect
+	github.com/xtls/reality v0.0.0-20260322125925-9234c772ba8f // indirect
 	github.com/yandex-cloud/go-genproto v0.14.0 // indirect
 	github.com/yandex-cloud/go-sdk/services/dns v0.0.3 // indirect
 	github.com/yandex-cloud/go-sdk/v2 v2.0.8 // indirect
@@ -208,21 +208,21 @@ require (
 	go.uber.org/ratelimit v0.3.1 // indirect
 	go.uber.org/zap v1.27.0 // indirect
 	go4.org/netipx v0.0.0-20231129151722-fdeea329fbba // indirect
-	golang.org/x/crypto v0.48.0 // indirect
+	golang.org/x/crypto v0.49.0 // indirect
 	golang.org/x/exp v0.0.0-20250911091902-df9299821621 // indirect
-	golang.org/x/mod v0.32.0 // indirect
-	golang.org/x/net v0.50.0 // indirect
+	golang.org/x/mod v0.33.0 // indirect
+	golang.org/x/net v0.52.0 // indirect
 	golang.org/x/oauth2 v0.34.0 // indirect
-	golang.org/x/sync v0.19.0 // indirect
-	golang.org/x/text v0.34.0 // indirect
+	golang.org/x/sync v0.20.0 // indirect
+	golang.org/x/text v0.35.0 // indirect
 	golang.org/x/time v0.12.0 // indirect
-	golang.org/x/tools v0.41.0 // indirect
+	golang.org/x/tools v0.42.0 // indirect
 	golang.zx2c4.com/wintun v0.0.0-20230126152724-0fa3db229ce2 // indirect
-	golang.zx2c4.com/wireguard v0.0.0-20231211153847-12269c276173 // indirect
+	golang.zx2c4.com/wireguard v0.0.0-20250521234502-f333402bd9cb // indirect
 	google.golang.org/api v0.249.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20251202230838-ff82c1b0f217 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20251202230838-ff82c1b0f217 // indirect
-	google.golang.org/grpc v1.79.1 // indirect
+	google.golang.org/grpc v1.79.3 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/ns1/ns1-go.v2 v2.14.4 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
@@ -231,4 +231,4 @@ require (
 	lukechampine.com/blake3 v1.4.1 // indirect
 )
 
-replace github.com/xtls/xray-core v1.260206.0 => github.com/wyx2685/xray-core v0.0.0-20260301200735-965d62dfa5de
+replace github.com/xtls/xray-core v1.260327.0 => github.com/wyx2685/xray-core v0.0.0-20260329220146-ed2ac88971fd

@@ -77,19 +77,21 @@ type BaseConfig struct {
 }
 
 type TlsSettings struct {
-	ServerName       string `json:"server_name"`
-	Dest             string `json:"dest"`
-	ServerPort       string `json:"server_port"`
-	ShortId          string `json:"short_id"`
-	PrivateKey       string `json:"private_key"`
-	Mldsa65Seed      string `json:"mldsa65Seed"`
-	Xver             uint64 `json:"xver,string"`
-	CertMode         string `json:"cert_mode"`
-	CertFile         string `json:"cert_file"`
-	KeyFile          string `json:"key_file"`
-	Provider         string `json:"provider"`
-	DNSEnv           string `json:"dns_env"`
-	RejectUnknownSni string `json:"reject_unknown_sni"`
+	ServerName       string   `json:"server_name"`
+	ServerNames      []string `json:"server_names"`
+	Dest             string   `json:"dest"`
+	ServerPort       string   `json:"server_port"`
+	ShortId          string   `json:"short_id"`
+	ShortIds         []string `json:"short_ids"`
+	PrivateKey       string   `json:"private_key"`
+	Mldsa65Seed      string   `json:"mldsa65Seed"`
+	Xver             uint64   `json:"xver,string"`
+	CertMode         string   `json:"cert_mode"`
+	CertFile         string   `json:"cert_file"`
+	KeyFile          string   `json:"key_file"`
+	Provider         string   `json:"provider"`
+	DNSEnv           string   `json:"dns_env"`
+	RejectUnknownSni string   `json:"reject_unknown_sni"`
 }
 
 type CertInfo struct {
@@ -174,7 +176,7 @@ func (c *Client) GetNodeInfo() (node *NodeInfo, err error) {
 		CertFile:         cf,
 		KeyFile:          kf,
 		Email:            "node@v2board.com",
-		CertDomain:       cm.TlsSettings.ServerName,
+		CertDomain:       cm.TlsSettings.PrimaryServerName(),
 		DNSEnv:           make(map[string]string),
 		Provider:         cm.TlsSettings.Provider,
 		RejectUnknownSni: cm.TlsSettings.RejectUnknownSni == "1",
@@ -210,4 +212,32 @@ func intervalToTime(i interface{}) time.Duration {
 	default:
 		return time.Duration(reflect.ValueOf(i).Int()) * time.Second
 	}
+}
+
+func (t TlsSettings) EffectiveServerNames() []string {
+	if len(t.ServerNames) > 0 {
+		return t.ServerNames
+	}
+	if t.ServerName == "" {
+		return nil
+	}
+	return []string{t.ServerName}
+}
+
+func (t TlsSettings) EffectiveShortIds() []string {
+	if len(t.ShortIds) > 0 {
+		return t.ShortIds
+	}
+	if t.ShortId == "" {
+		return nil
+	}
+	return []string{t.ShortId}
+}
+
+func (t TlsSettings) PrimaryServerName() string {
+	serverNames := t.EffectiveServerNames()
+	if len(serverNames) == 0 {
+		return ""
+	}
+	return serverNames[0]
 }

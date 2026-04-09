@@ -2,6 +2,7 @@ package panel
 
 import (
 	"errors"
+	"fmt"
 	"strconv"
 	"time"
 
@@ -28,6 +29,7 @@ type Client struct {
 func New(c *conf.NodeConfig) (*Client, error) {
 	client := resty.New()
 	client.SetRetryCount(3)
+    client.SetHeader("User-Agent", fmt.Sprintf("v2node go-resty/%s (https://github.com/go-resty/resty)", resty.Version))
 	if c.Timeout > 0 {
 		client.SetTimeout(time.Duration(c.Timeout) * time.Second)
 	} else {

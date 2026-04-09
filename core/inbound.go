@@ -148,9 +148,11 @@ func buildInbound(nodeInfo *panel.NodeInfo, tag string) (*core.InboundHandlerCon
 		}
 		in.StreamSetting.Security = "reality"
 		v := nodeInfo.Common
+		serverNames := v.TlsSettings.EffectiveServerNames()
+		shortIds := v.TlsSettings.EffectiveShortIds()
 		dest := v.TlsSettings.Dest
 		if dest == "" {
-			dest = v.TlsSettings.ServerName
+			dest = v.TlsSettings.PrimaryServerName()
 		}
 		xver := v.TlsSettings.Xver
 		d, err := json.Marshal(fmt.Sprintf(
@@ -164,9 +166,9 @@ func buildInbound(nodeInfo *panel.NodeInfo, tag string) (*core.InboundHandlerCon
 			Dest:        d,
 			Xver:        xver,
 			Show:        false,
-			ServerNames: []string{v.TlsSettings.ServerName},
+			ServerNames: serverNames,
 			PrivateKey:  v.TlsSettings.PrivateKey,
-			ShortIds:    []string{v.TlsSettings.ShortId},
+			ShortIds:    shortIds,
 			Mldsa65Seed: v.TlsSettings.Mldsa65Seed,
 		}
 	default:

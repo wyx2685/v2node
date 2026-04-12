@@ -4,14 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - master
-    paths:
-      - "**/*.go"
-      - "go.mod"
-      - "go.sum"
-      - ".github/workflows/release.yml"
-  pull_request:
-    types: [opened, synchronize, reopened]
+      - main
     paths:
       - "**/*.go"
       - "go.mod"
@@ -21,8 +14,38 @@ on:
     types: [published]
 
 jobs:
+  create-release:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Generate version
+        id: version
+        run: |
+          DATE=$(date +%Y%m%d)
+          COMMIT=$(git rev-parse --short=7 HEAD)
+          VERSION="v${DATE}-${COMMIT}"
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.version }}
+          name: ${{ steps.version.outputs.version }}
+          body: ${{ github.event.head_commit.message }}
+          draft: false
+          prerelease: false
+
 
   build:
+    needs: [create-release]
+    if: always() && (needs.create-release.result == 'success' || github.event_name == 'release' || github.event_name == 'workflow_dispatch')
     strategy:
       matrix:
         # Include amd64 on all platforms.
@@ -113,14 +136,15 @@ jobs:
       - name: Get project dependencies
         run: |
           go mod download
-      - name: Get release version
-        if: ${{ github.event_name == 'release' }}
+      - name: Get version
         run: |
-          echo "version=$(echo $GITHUB_REF | cut -d / -f 3)" >> $GITHUB_ENV
-      - name: Get other version
-        if: ${{ github.event_name != 'release' }}
-        run: |
-          echo "version=${{ github.sha }}" >> $GITHUB_ENV
+          if [ "${{ github.event_name }}" == "release" ]; then
+            echo "version=$(echo $GITHUB_REF | cut -d / -f 3)" >> $GITHUB_ENV
+          elif [ "${{ github.event_name }}" == "push" ]; then
+            echo "version=${{ needs.create-release.outputs.version }}" >> $GITHUB_ENV
+          else
+            echo "version=${{ github.sha }}" >> $GITHUB_ENV
+          fi
       - name: Build v2node
         run: |
           echo "version: $version"
@@ -173,9 +197,109 @@ jobs:
             ./v2node-${{ steps.get_filename.outputs.ASSET_NAME }}/*
       - name: Upload binaries to release
         uses: svenstaro/upload-release-action@v2
-        if: github.event_name == 'release'
+        if: github.event_name == 'release' || github.event_name == 'push'
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           file: ./v2node-${{ steps.get_filename.outputs.ASSET_NAME }}.zip*
-          tag: ${{ github.ref }}
+          tag: ${{ github.event_name == 'release' && github.ref || needs.create-release.outputs.version }}
           file_glob: true
+
+  docker-build:
+    needs: [build]
+    if: github.event_name == 'release' || github.event_name == 'push'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - linux/amd64
+          - linux/arm64
+    steps:
+      - name: Prepare
+        run: |
+          platform=${{ matrix.platform }}
+          echo "PLATFORM_PAIR=${platform//\//-}" >> $GITHUB_ENV
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/v2node
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push by digest
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          platforms: ${{ matrix.platform }}
+          labels: ${{ steps.meta.outputs.labels }}
+          outputs: type=image,name=ghcr.io/${{ github.repository_owner }}/v2node,push-by-digest=true,name-canonical=true,push=true
+
+      - name: Export digest
+        run: |
+          mkdir -p /tmp/digests
+          digest="${{ steps.build.outputs.digest }}"
+          echo "${digest#sha256:}" > "/tmp/digests/${digest#sha256:}"
+
+      - name: Upload digest
+        uses: actions/upload-artifact@v4
+        with:
+          name: digests-${{ env.PLATFORM_PAIR }}
+          path: /tmp/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  docker-merge:
+    needs: [docker-build]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download digests
+        uses: actions/download-artifact@v4
+        with:
+          path: /tmp/digests
+          pattern: digests-*
+          merge-multiple: true
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/v2node
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create manifest list and push
+        run: |
+          cd /tmp/digests
+          tags=$(echo '${{ steps.meta.outputs.json }}' | jq -cr '.tags | map("-t " + .) | join(" ")')
+          images=$(printf "ghcr.io/${{ github.repository_owner }}/v2node@sha256:%s " $(find . -type f -exec cat {} \;))
+          echo "Creating manifest with tags: $tags"
+          echo "Using images: $images"
+          docker buildx imagetools create $tags $images
+
+      - name: Inspect image
+        run: |
+          docker buildx imagetools inspect ghcr.io/${{ github.repository_owner }}/v2node:${{ steps.meta.outputs.version }}

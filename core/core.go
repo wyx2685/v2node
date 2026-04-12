@@ -86,7 +86,7 @@ func getCore(c *conf.Conf, infos []*panel.NodeInfo) *core.Instance {
 		ErrorLog:  c.LogConfig.Output,
 	}
 	// Custom config
-	dnsConfig, outBoundConfig, routeConfig, err := GetCustomConfig(infos)
+	dnsConfig, outBoundConfig, routeConfig, observatoryConfig, err := GetCustomConfig(infos)
 	if err != nil {
 		log.WithField("err", err).Panic("failed to build custom config")
 	}
@@ -120,6 +120,10 @@ func getCore(c *conf.Conf, infos []*panel.NodeInfo) *core.Instance {
 		},
 		Inbound:  inBoundConfig,
 		Outbound: outBoundConfig,
+	}
+	// Add Observatory config if present (for leastping/leastload strategies)
+	if observatoryConfig != nil {
+		config.App = append(config.App, serial.ToTypedMessage(observatoryConfig))
 	}
 	server, err := core.New(config)
 	if err != nil {

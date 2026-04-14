@@ -21,6 +21,8 @@ type Client struct {
 	NodeId           int
 	nodeEtag         string
 	userEtag         string
+	nodeCertEtag     string
+	nodeCertBodyHash string
 	responseBodyHash string
 	UserList         *UserListBody
 	AliveMap         *AliveMap
@@ -29,7 +31,7 @@ type Client struct {
 func New(c *conf.NodeConfig) (*Client, error) {
 	client := resty.New()
 	client.SetRetryCount(3)
-    client.SetHeader("User-Agent", fmt.Sprintf("v2node go-resty/%s (https://github.com/go-resty/resty)", resty.Version))
+	client.SetHeader("User-Agent", fmt.Sprintf("v2node go-resty/%s (https://github.com/go-resty/resty)", resty.Version))
 	if c.Timeout > 0 {
 		client.SetTimeout(time.Duration(c.Timeout) * time.Second)
 	} else {

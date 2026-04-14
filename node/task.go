@@ -1,8 +1,6 @@
 package node
 
 import (
-	"time"
-
 	log "github.com/sirupsen/logrus"
 	panel "github.com/wyx2685/v2node/api/v2board"
 	"github.com/wyx2685/v2node/common/task"
@@ -29,21 +27,7 @@ func (c *Controller) startTasks(node *panel.NodeInfo) {
 	_ = c.nodeInfoMonitorPeriodic.Start(false)
 	log.WithField("tag", c.tag).Info("Start report node status")
 	_ = c.userReportPeriodic.Start(false)
-	if node.Security == panel.Tls {
-		switch c.info.Common.CertInfo.CertMode {
-		case "none", "", "file", "self":
-		default:
-			c.renewCertPeriodic = &task.Task{
-				Name:     "renewCertTask",
-				Interval: time.Hour * 24,
-				Execute:  c.renewCertTask,
-				Reload:   c.reloadTask,
-			}
-			log.WithField("tag", c.tag).Info("Start renew cert")
-			// delay to start renewCert
-			_ = c.renewCertPeriodic.Start(true)
-		}
-	}
+	c.startCertTask(node)
 }
 
 func (c *Controller) reloadTask() {

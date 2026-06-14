@@ -146,6 +146,30 @@ func (*DefaultDispatcher) Start() error {
 // Close implements common.Closable.
 func (*DefaultDispatcher) Close() error { return nil }
 
+func withAnyTLSAccessMessage(ctx context.Context, destination net.Destination) context.Context {
+	if log.AccessMessageFromContext(ctx) != nil {
+		return ctx
+	}
+
+	inbound := session.InboundFromContext(ctx)
+	if inbound == nil || inbound.Name != "anytls" {
+		return ctx
+	}
+
+	msg := &log.AccessMessage{
+		To:     destination,
+		Status: log.AccessAccepted,
+		Reason: "",
+	}
+	if inbound.Source.IsValid() {
+		msg.From = inbound.Source
+	}
+	if inbound.User != nil {
+		msg.Email = inbound.User.Email
+	}
+	return log.ContextWithAccessMessage(ctx, msg)
+}
+
 func (d *DefaultDispatcher) getLink(ctx context.Context) (*transport.Link, *transport.Link, *limiter.Limiter, error) {
 	opt := pipe.OptionsFromContext(ctx)
 	uplinkReader, uplinkWriter := pipe.New(opt...)
@@ -287,6 +311,7 @@ func (d *DefaultDispatcher) Dispatch(ctx context.Context, destination net.Destin
 		content = new(session.Content)
 		ctx = session.ContextWithContent(ctx, content)
 	}
+	ctx = withAnyTLSAccessMessage(ctx, destination)
 	sniffingRequest := content.SniffingRequest
 	inbound, outbound, _, err := d.getLink(ctx)
 	if err != nil {
@@ -346,6 +371,7 @@ func (d *DefaultDispatcher) DispatchLink(ctx context.Context, destination net.De
 		content = new(session.Content)
 		ctx = session.ContextWithContent(ctx, content)
 	}
+	ctx = withAnyTLSAccessMessage(ctx, destination)
 
 	sessionInbound := session.InboundFromContext(ctx)
 	var user *protocol.MemoryUser

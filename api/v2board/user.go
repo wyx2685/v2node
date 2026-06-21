@@ -158,3 +158,19 @@ func (c *Client) ReportNodeOnlineUsers(ctx context.Context, data *map[int][]stri
 
 	return nil
 }
+
+type NodeStatus struct {
+	CPU    float64 `json:"cpu"`
+	Mem    float64 `json:"mem"`
+	Uptime int64   `json:"uptime"`
+}
+
+func (c *Client) ReportNodeStatus(ctx context.Context, status *NodeStatus) error {
+	const path = "/api/v1/server/UniProxy/nodestatus"
+	_, err := c.client.R().
+		SetContext(ctx).
+		SetBody(status).
+		ForceContentType("application/json").
+		Post(path)
+	return err
+}

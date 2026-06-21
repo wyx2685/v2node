@@ -25,6 +25,7 @@ type Controller struct {
 	nodeInfoMonitorPeriodic *task.Task
 	userReportPeriodic      *task.Task
 	renewCertPeriodic       *task.Task
+	nodeStatusPeriodic      *task.Task
 }
 
 // NewController return a Node controller with default parameters.
@@ -104,6 +105,9 @@ func (c *Controller) Close() error {
 	}
 	if c.renewCertPeriodic != nil {
 		c.renewCertPeriodic.Close()
+	}
+	if c.nodeStatusPeriodic != nil {
+		c.nodeStatusPeriodic.Close()
 	}
 	err := c.server.DelNode(c.tag)
 	if err != nil {

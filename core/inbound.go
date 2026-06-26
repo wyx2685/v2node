@@ -24,6 +24,15 @@ type NetworkSettingsProxyProtocol struct {
 	AcceptProxyProtocol bool `json:"acceptProxyProtocol"`
 }
 
+func isHTTPReverseProxyTransport(network string) bool {
+	switch network {
+	case "ws", "grpc", "xhttp", "splithttp", "httpupgrade", "http", "h2":
+		return true
+	default:
+		return false
+	}
+}
+
 func (v *V2Core) removeInbound(tag string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -93,6 +102,14 @@ func buildInbound(nodeInfo *panel.NodeInfo, tag string) (*core.InboundHandlerCon
 					AcceptProxyProtocol: n.AcceptProxyProtocol,
 				}
 			}
+		}
+	}
+    if isHTTPReverseProxyTransport(nodeInfo.Common.Network) && in.StreamSetting != nil {
+		if in.StreamSetting.SocketSettings == nil {
+			in.StreamSetting.SocketSettings = &coreConf.SocketConfig{}
+		}
+		if len(in.StreamSetting.SocketSettings.TrustedXForwardedFor) == 0 {
+			in.StreamSetting.SocketSettings.TrustedXForwardedFor = []string{"X-Forwarded-For"}
 		}
 	}
 	// Set server port

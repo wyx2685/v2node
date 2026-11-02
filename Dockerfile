@@ -3,7 +3,7 @@ FROM golang:1.27.3-alpine AS builder
 WORKDIR /app
 COPY . .
 ENV CGO_ENABLED=0
-RUN GOEXPERIMENT=jsonv2 go mod tidy
+RUN GOEXPERIMENT=jsonv2 go mod download
 RUN GOEXPERIMENT=jsonv2 go build -v -o v2node
 
 # Release

@@ -51,8 +51,6 @@ jobs:
         uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
-      - name: Resolve project dependencies
-        run: go mod tidy
       # Autobuild attempts to build any compiled languages  (C/C++, C#, or Java).
       # If this step fails, then you should remove it and run the build manually (see below)
       - name: Autobuild

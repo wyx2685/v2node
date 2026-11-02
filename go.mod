@@ -1,6 +1,8 @@
 module github.com/wyx2685/v2node
 
-go 1.27.1
+go 1.27.3
+
+godebug multipathtcp=0
 
 require (
 	github.com/fsnotify/fsnotify v1.10.1
@@ -217,7 +219,7 @@ require (
 	github.com/volcengine/volc-sdk-golang v1.0.242 // indirect
 	github.com/vultr/govultr/v3 v3.31.0 // indirect
 	github.com/wlynxg/anet v0.0.5 // indirect
-	github.com/xtls/reality v0.0.0-20260908062103-8cdf7bf9c7f0 // indirect
+	github.com/xtls/reality v0.0.0-20261014101318-83f621788ca8 // indirect
 	github.com/yandex-cloud/go-genproto v0.73.0 // indirect
 	github.com/yandex-cloud/go-sdk/services/dns v0.0.54 // indirect
 	github.com/yandex-cloud/go-sdk/v2 v2.92.0 // indirect
@@ -254,4 +256,7 @@ require (
 	lukechampine.com/blake3 v1.4.1 // indirect
 )
 
-replace github.com/xtls/xray-core v1.260930.0 => github.com/wyx2685/xray-core v0.0.0-20260930151924-e087e74a1bf2
+replace (
+	github.com/xtls/xray-core v1.260930.0 => github.com/wyx2685/xray-core v0.0.0-20261102040409-dcfae7c4776b
+	github.com/xtls/reality => github.com/wyx2685/REALITY v0.0.0-20261102081311-25ea3c0fa255
+)

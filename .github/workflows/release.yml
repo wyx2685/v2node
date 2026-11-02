@@ -108,7 +108,6 @@ jobs:
 
       - name: Get project dependencies
         run: |
-          go mod tidy
           go mod download
       - name: Get release version
         if: ${{ github.event_name == 'release' }}

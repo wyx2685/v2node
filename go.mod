@@ -13,7 +13,7 @@ require (
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/viper v1.21.0
 	github.com/vmihailenco/msgpack/v5 v5.4.1
-	github.com/xtls/xray-core v1.260930.0
+	github.com/xtls/xray-core v1.261031.0
 	golang.org/x/sys v0.49.0
 	google.golang.org/protobuf v1.36.12
 )
@@ -132,7 +132,7 @@ require (
 	github.com/json-iterator/go v1.1.13-0.20220915233716-71ac16282d12 // indirect
 	github.com/k0kubun/go-ansi v0.0.0-20180517002512-3bf9e2903213 // indirect
 	github.com/klauspost/compress v1.20.0 // indirect
-	github.com/klauspost/cpuid/v2 v2.4.1 // indirect
+	github.com/klauspost/cpuid/v2 v2.4.2 // indirect
 	github.com/kolo/xmlrpc v0.0.0-20220921171641-a4b6fa1dd06b // indirect
 	github.com/koron/go-ssdp v0.0.4 // indirect
 	github.com/kylelemons/godebug v1.1.0 // indirect
@@ -258,5 +258,5 @@ require (
 
 replace (
 	github.com/xtls/reality => github.com/wyx2685/REALITY v0.0.0-20261102081311-25ea3c0fa255
-	github.com/xtls/xray-core v1.260930.0 => github.com/wyx2685/xray-core v0.0.0-20261102040409-dcfae7c4776b
+	github.com/xtls/xray-core v1.261031.0 => github.com/wyx2685/xray-core v0.0.0-20261105071511-0061c59f331a
 )
